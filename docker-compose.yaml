@@ -1,0 +1,75 @@
+services:
+  # Cardano Node - Required for Hydra Head protocol
+  cardano-node:
+    image: ghcr.io/blinklabs-io/cardano-node:10.4.1
+    container_name: cardano-node
+    environment:
+      - NETWORK=preprod
+    volumes:
+      - ./data:/data
+      - ./ipc:/ipc
+      - ./credentials:/credentials
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+    
+  # Hydra Node
+  hydra-node:
+    image: ghcr.io/cardano-scaling/hydra-node:1.1.0
+    container_name: hydra-node
+    depends_on:
+      - cardano-node
+    volumes:
+      - ./ipc:/ipc
+      - ./credentials:/credentials
+      - ./hydra-config:/hydra-config
+    ports:
+      - "4001:4001"  # API port
+      - "5001:5001"  # Hydra network port
+    restart: unless-stopped
+    command: 
+      [ "--node-id", "alice-node",
+        "--persistence-dir", "persistance-alice",
+        "--cardano-signing-key", "credentials/alice-node.sk",
+        "--api-host", "0.0.0.0",
+        "--api-port", "4001",
+        "--monitoring-port", "6001",
+        "--hydra-signing-key", "credentials/alice-hydra.sk",
+        "--hydra-scripts-tx-id", "407bf714186db790f2624701b2e065850dd7b7cf998c931222d99a56d8ad256b,4cae9ad9c1cc4f82ce2fd51f9e1155a37ac88957f81128ba1c51bc7c6734ce6c,a3a27a3049be1fe931a0d99bf132a88b848b12dc50f50856cb86e12bb135f5d2",
+        "--ledger-protocol-parameters", "./hydra-config/protocol-parameters.json",
+        "--node-socket", "./ipc/node.socket",
+        "--testnet-magic", "1",
+        "--contestation-period", "60s",
+      ]
+    networks:
+      hydra_net:
+        ipv4_address: 172.16.239.10
+
+  # Hydra TUI
+  hydra-tui:
+    image: ghcr.io/cardano-scaling/hydra-tui:latest
+    command:
+      [
+        "--connect",
+        "172.16.239.10:4001",
+        "--node-socket",
+        "/devnet/node.socket",
+        "--testnet-magic",
+        "1",
+        "--cardano-signing-key",
+        "/credentials/alice-funds.sk",
+      ]
+    volumes:
+      - ./credentials:/credentials
+    networks:
+      hydra_net:
+        ipv4_address: 172.16.239.11
+
+networks:
+  hydra_net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.16.239.0/24
+          gateway: 172.16.239.1

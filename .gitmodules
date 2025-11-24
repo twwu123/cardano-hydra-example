@@ -1,0 +1,4 @@
+[submodule "cardano-hydra-example"]
+	path = cardano-hydra-example
+	url = https://github.com/twwu123/cardano-tic-tac-toe.git
+	branch = hydra
